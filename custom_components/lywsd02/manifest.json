@@ -3,10 +3,8 @@
     "name": "LYWSD02 Sync",
     "bluetooth": [
         {
-            "local_name": "LYWSD02"
-        },
-        {
-            "local_name": "LYWSD02MMC"
+            "connectable": true,
+            "service_data_uuid": "0000fe95-0000-1000-8000-00805f9b34fb"
         }
     ],
     "codeowners": [
@@ -14,14 +12,15 @@
     ],
     "config_flow": true,
     "dependencies": [
-        "bluetooth"
+        "bluetooth",
+        "bluetooth_adapters"
     ],
     "documentation": "https://github.com/rpouetpouet/ha-lywsd02-sync",
     "iot_class": "local_polling",
     "issue_tracker": "https://github.com/rpouetpouet/ha-lywsd02-sync/issues",
     "requirements": [
-        "bluetooth_adapters",
-        "bleak-retry-connector>=3.0.0"
+        "bleak-retry-connector>=3.0.0",
+        "xiaomi-ble"
     ],
-    "version": "0.4.1"
+    "version": "0.4.2"
 }

@@ -36,9 +36,18 @@ time.
 
 ### Adding a clock
 
-Either accept the discovery prompt (the manifest declares the `LYWSD02` and
-`LYWSD02MMC` Bluetooth local names), or **Add integration → LYWSD02 Sync** and
+Either accept the discovery prompt, or **Add integration → LYWSD02 Sync** and
 enter the MAC address.
+
+**How discovery identifies the clock.** The manifest matches on the Xiaomi
+MiBeacon service data (`0000fe95-…`), not on a Bluetooth name — measured on a
+real LYWSD02, the advertisement carries **no name at all**
+(`advertisement.name = None`), so a `local_name` matcher can never fire. The
+model is then read from the payload by the official `xiaomi-ble` library (the
+one Home Assistant's Xiaomi BLE integration ships with), which reports the
+device as `Temperature/Humidity Sensor XXXX (LYWSD02)`. Devices that share the
+MiBeacon service data but are a different model (e.g. `LYWSDCGQ`,
+`HHCCJCY01`) are filtered out and never proposed.
 
 The config entry is optional: the legacy service below works without it.
 
@@ -127,6 +136,12 @@ lywsd02:
   range, or a local adapter. A passive-only path is not enough.
 - This integration only writes the clock. Temperature and humidity readings come
   from Home Assistant's built-in Bluetooth/Xiaomi support.
+- An **encrypted** `LYWSD02MMC` (MiBeacon v4/v5, bindkey required) is detected
+  and refused explicitly rather than silently failing.
+- `xiaomi-ble` is deliberately declared **unpinned** in `requirements`: any
+  version already installed with Home Assistant satisfies it, so installing this
+  fork never triggers a `pip` download that could clash with the core Xiaomi BLE
+  integration.
 
 ## Tests
 
@@ -134,7 +149,12 @@ lywsd02:
 python3 tests/test_dst.py          # timezone / DST proofs
 python3 tests/test_sync_logic.py   # option merging, schedule parsing, guard
 python3 tests/test_imports.py      # static check: no missing constant import
+python3 tests/test_discovery.py    # model detection from a real advertisement
 ```
+
+`tests/test_discovery.py` replays the **actual advertisement bytes** captured
+from a live clock, and asserts the manifest does not rely on a Bluetooth name
+that is never broadcast (the bug fixed in 0.4.2).
 
 No Home Assistant installation required: the helpers module imports nothing
 from Home Assistant, so the tests exercise real behaviour.

@@ -6,6 +6,7 @@ without spinning up Home Assistant.
 
 from __future__ import annotations
 
+import re
 import time
 from datetime import timedelta
 from typing import Any
@@ -123,3 +124,40 @@ def options_for(entry) -> dict[str, Any]:
     merged.setdefault(CONF_CLOCK_MODE, DEFAULT_CLOCK_MODE)
     merged.setdefault(CONF_TIMEOUT, DEFAULT_TIMEOUT)
     return merged
+
+
+# --- Decouverte : identification du modele depuis l'annonce MiBeacon --------
+#
+# Mesure du 08/10/2026 sur l'horloge E7:2E:01:01:DC:29 : l'annonce BLE ne
+# contient AUCUN nom (advertisement.name = None) ; seul le service data
+# MiBeacon 0000fe95-... est present. Un matcher de manifest sur `local_name`
+# ne peut donc JAMAIS se declencher (bug corrige en 0.4.2).
+# On identifie le modele en analysant la charge utile avec la bibliotheque
+# officielle `xiaomi-ble` (celle de l'integration Xiaomi BLE de Home Assistant),
+# dont le titre porte le modele entre parentheses :
+#   "Temperature/Humidity Sensor DC29 (LYWSD02)"
+# Ces deux fonctions restent pures (aucun import Home Assistant) : elles sont
+# testees hors Home Assistant avec le titre reellement observe.
+
+SUPPORTED_MODELS = ("LYWSD02", "LYWSD02MMC")
+ENCRYPTED_MODELS = ("LYWSD02MMC",)  # MiBeacon chiffre : exige une bindkey
+
+_TITLE_MODEL_RE = re.compile(r"\(([A-Za-z0-9_-]+)\)\s*$")
+
+
+def model_from_title(title: str | None) -> str | None:
+    """Modele supporte annonce dans un titre xiaomi-ble, sinon None."""
+    if not title:
+        return None
+    match = _TITLE_MODEL_RE.search(title.strip())
+    if match is None:
+        return None
+    model = match.group(1).upper()
+    return model if model in SUPPORTED_MODELS else None
+
+
+def device_name_from_title(title: str | None, fallback: str = "") -> str:
+    """Nom lisible d'un titre xiaomi-ble, sans son suffixe de modele."""
+    if not title:
+        return fallback
+    return _TITLE_MODEL_RE.sub("", title.strip()).strip() or fallback

@@ -11,7 +11,10 @@ The legacy ``lywsd02.set_time`` YAML service keeps working without any entry.
 from __future__ import annotations
 
 import re
+import logging
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 import voluptuous as vol
 
@@ -43,7 +46,12 @@ from .const import (
     CONF_TIMEOUT,
     DOMAIN,
 )
-from .helpers import options_for
+from .helpers import (
+    ENCRYPTED_MODELS,
+    device_name_from_title,
+    model_from_title,
+    options_for,
+)
 
 _MAC_RE = re.compile(r"^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
@@ -61,6 +69,27 @@ class LywsdConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered_mac: str | None = None
         self._discovered_name: str | None = None
 
+    @staticmethod
+    def _xiaomi_title(discovery_info: BluetoothServiceInfo) -> str:
+        """Titre xiaomi-ble de l'appareil decouvert (modele inclus).
+
+        L'annonce MiBeacon de ces horloges ne porte aucun nom : c'est la
+        bibliotheque officielle `xiaomi-ble` - deja installee avec Home
+        Assistant, utilisee par l'integration Xiaomi BLE - qui identifie le
+        modele a partir de la charge utile. Import defensif : si la
+        bibliotheque manque, la decouverte s'abstient au lieu de casser le
+        chargement de l'integration.
+        """
+        try:
+            from xiaomi_ble import XiaomiBluetoothDeviceData
+        except ImportError:  # pragma: no cover - fourni par Home Assistant
+            _LOGGER.debug("xiaomi-ble absent : decouverte ignoree")
+            return ""
+        device = XiaomiBluetoothDeviceData()
+        if not device.supported(discovery_info):
+            return ""
+        return device.title or device.get_device_name() or ""
+
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfo
     ) -> ConfigFlowResult:
@@ -68,8 +97,18 @@ class LywsdConfigFlow(ConfigFlow, domain=DOMAIN):
         mac = discovery_info.address.upper()
         await self.async_set_unique_id(mac)
         self._abort_if_unique_id_configured()
+
+        # Le matcher du manifest porte sur le service data MiBeacon, que
+        # partagent tous les appareils Xiaomi : on ne retient que nos modeles.
+        title = self._xiaomi_title(discovery_info)
+        model = model_from_title(title)
+        if model is None:
+            return self.async_abort(reason="not_supported")
+        if model in ENCRYPTED_MODELS:
+            return self.async_abort(reason="encrypted_not_supported")
+
         self._discovered_mac = mac
-        self._discovered_name = discovery_info.name or mac
+        self._discovered_name = device_name_from_title(title, mac)
         self.context["title_placeholders"] = {"name": self._discovered_name}
         return await self.async_step_bluetooth_confirm()
 

@@ -18,7 +18,9 @@
       "invalid_mac": "Cette adresse MAC ne semble pas valide."
     },
     "abort": {
-      "already_configured": "Cet appareil est déjà configuré."
+      "already_configured": "Cet appareil est déjà configuré.",
+      "not_supported": "Cet appareil Bluetooth n'est pas un LYWSD02 / LYWSD02MMC pris en charge.",
+      "encrypted_not_supported": "C'est un LYWSD02MMC en MiBeacon chiffre : il exige une bindkey et n'est pas encore pris en charge."
     }
   },
   "options": {
