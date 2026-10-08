@@ -1,4 +1,6 @@
 {
     "name": "LYWSD02 Sync",
-    "hide_default_branch": false
+    "hacs": "2.0.0",
+    "homeassistant": "2024.10.0",
+    "render_readme": true
 }

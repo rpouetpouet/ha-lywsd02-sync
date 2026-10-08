@@ -1,16 +1,16 @@
-"""Button platform for the LYWSD02 / LYWSD02MMC integration."""
+"""Button platform for the LYWSD02 Sync integration."""
 
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_MAC
+from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import async_sync_lywsd02
-from .const import DOMAIN
+from . import async_request_sync
+from .const import DOMAIN, TRIGGER_BUTTON
 
 
 async def async_setup_entry(
@@ -23,15 +23,21 @@ async def async_setup_entry(
 
 
 class LywsdSyncTimeButton(ButtonEntity):
-    """Button that syncs a LYWSD02/LYWSD02MMC's clock on press."""
+    """Button that syncs a LYWSD02/LYWSD02MMC clock on press.
+
+    Goes through ``async_request_sync`` so the press is recorded in the
+    diagnostic entities and a failure raises ``HomeAssistantError`` - Home
+    Assistant then shows it as a failed action instead of pretending success.
+    """
 
     _attr_has_entity_name = True
-    _attr_name = "Sync time"
+    _attr_translation_key = "sync_now"
     _attr_icon = "mdi:clock-check-outline"
 
     def __init__(self, entry: ConfigEntry) -> None:
-        """Initialize the button for one configured device."""
-        self._mac = entry.data[CONF_MAC]
+        """Initialize the button for one configured clock."""
+        self._entry = entry
+        self._mac = str(entry.data[CONF_MAC]).upper()
         self._attr_unique_id = f"{self._mac}_sync_time"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._mac)},
@@ -41,9 +47,7 @@ class LywsdSyncTimeButton(ButtonEntity):
         )
 
     async def async_press(self) -> None:
-        """Sync the device's clock to Home Assistant's current time.
-
-        Raises HomeAssistantError (via async_sync_lywsd02) on failure, which
-        Home Assistant surfaces as a failed-action notice in the UI.
-        """
-        await async_sync_lywsd02(self.hass, self._mac)
+        """Sync the clock to Home Assistant's current time."""
+        await async_request_sync(
+            self.hass, self._entry, TRIGGER_BUTTON, raise_on_error=True
+        )

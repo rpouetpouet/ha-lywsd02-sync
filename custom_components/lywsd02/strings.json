@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Add a LYWSD02 / LYWSD02MMC",
-        "description": "Enter the Bluetooth MAC address of your Xiaomi LYWSD02 or LYWSD02MMC thermo-hygrometer. This adds a \"Sync time\" button for it; the lywsd02.set_time service keeps working on its own regardless.",
+        "description": "Enter the Bluetooth MAC address of your Xiaomi LYWSD02 or LYWSD02MMC thermo-hygrometer. This adds a device page with a \"Sync now\" button, a built-in daily schedule and diagnostic entities. The legacy lywsd02.set_time service keeps working on its own.",
         "data": {
           "mac": "MAC address",
           "name": "Name"
@@ -19,6 +19,55 @@
     },
     "abort": {
       "already_configured": "This device is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "LYWSD02 Sync options",
+        "description": "The built-in schedule replaces a hand-written automation: with it enabled this clock is synchronised by the integration itself. Everything below applies to the next sync.",
+        "data": {
+          "sync_enabled": "Synchronise automatically (built-in schedule)",
+          "sync_time": "Daily sync time",
+          "sync_on_start": "Also sync shortly after Home Assistant starts",
+          "temp_mode": "Displayed temperature unit",
+          "clock_mode": "Clock face",
+          "timeout": "Bluetooth connection timeout"
+        }
+      }
+    }
+  },
+  "selector": {
+    "temp_mode": {
+      "options": {
+        "none": "Leave unchanged",
+        "C": "Celsius (°C)",
+        "F": "Fahrenheit (°F)"
+      }
+    },
+    "clock_mode": {
+      "options": {
+        "none": "Leave unchanged",
+        "12": "12-hour (LYWSD02MMC only)",
+        "24": "24-hour (LYWSD02MMC only)"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "sync_now": {
+        "name": "Sync now"
+      }
+    },
+    "sensor": {
+      "last_sync": {
+        "name": "Last sync"
+      }
+    },
+    "binary_sensor": {
+      "sync_problem": {
+        "name": "Sync problem"
+      }
     }
   }
 }

@@ -1,0 +1,125 @@
+"""Pure helpers for the LYWSD02 Sync integration.
+
+Kept free of any Home Assistant component import so they can be unit tested
+without spinning up Home Assistant.
+"""
+
+from __future__ import annotations
+
+import time
+from datetime import timedelta
+from typing import Any
+
+from .const import (
+    CONF_CLOCK_MODE,
+    CONF_SYNC_ENABLED,
+    CONF_SYNC_ON_START,
+    CONF_SYNC_TIME,
+    CONF_TEMP_MODE,
+    CONF_TIMEOUT,
+    DEFAULT_CLOCK_MODE,
+    DEFAULT_SYNC_ENABLED,
+    DEFAULT_SYNC_ON_START,
+    DEFAULT_SYNC_TIME,
+    DEFAULT_TEMP_MODE,
+    DEFAULT_TIMEOUT,
+)
+
+
+def get_localized_timestamp(tz_offset: int = 0, now_factory=None) -> int:
+    """Return the epoch that makes the device display Home Assistant's local time.
+
+    The device shows ``timestamp + tz_offset hours`` as wall-clock time, so the
+    local UTC offset has to be baked into the timestamp, minus whatever part of
+    it ``tz_offset`` already contributes - baking the full offset in regardless
+    of ``tz_offset`` double-counts it (upstream issue #13: at UTC+3 with
+    ``tz_offset=3`` the clock ran three hours fast).
+
+    ``now_factory`` is injected only so the behaviour can be tested; in
+    production it defaults to Home Assistant's own time zone, never the host
+    OS one (containerized installs usually keep the OS on UTC, which made the
+    clock wrong by the DST offset).
+    """
+    if now_factory is None:
+        from homeassistant.util import dt as dt_util
+
+        now_factory = dt_util.now
+
+    now = int(time.time())
+    offset = now_factory().utcoffset()
+    if offset is None:  # pragma: no cover - a tz-aware datetime always has one
+        return now
+    return now + int(offset.total_seconds()) - tz_offset * 3600
+
+
+def parse_sync_time(value: Any) -> tuple[int, int, int] | None:
+    """Parse ``HH:MM`` or ``HH:MM:SS`` into ``(hour, minute, second)``."""
+    if not isinstance(value, str):
+        return None
+    parts = value.strip().split(":")
+    if len(parts) not in (2, 3) or not all(part.isdigit() for part in parts):
+        return None
+    hour, minute = int(parts[0]), int(parts[1])
+    second = int(parts[2]) if len(parts) == 3 else 0
+    if not (0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+        return None
+    return hour, minute, second
+
+
+def next_sync_time(sync_time: Any, now):
+    """Return the next occurrence of ``sync_time`` strictly after ``now``."""
+    parsed = parse_sync_time(sync_time)
+    if parsed is None:
+        return None
+    hour, minute, second = parsed
+    candidate = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+    if candidate <= now:
+        candidate += timedelta(days=1)
+    return candidate
+
+
+def as_int(value: Any) -> int | None:
+    """Convert an option value to int, tolerating ``none``/empty values."""
+    if value in (None, "", "none"):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def should_skip_resync(
+    last_attempt,
+    now,
+    trigger: str,
+    *,
+    min_interval: float,
+    manual_trigger: str,
+) -> bool:
+    """Garde-fou anti-boucle : faut-il ignorer cette synchronisation ?
+
+    Une synchronisation *automatique* (planificateur, démarrage) est ignorée si
+    une tentative a eu lieu il y a moins de ``min_interval`` secondes. L'écriture
+    est idempotente, donc le pire cas sans ce garde-fou serait bénin - mais il
+    rend toute boucle structurellement impossible, y compris si deux
+    déclencheurs tombent en même temps ou si un changement d'heure provoque un
+    double tir.
+
+    Une synchronisation *manuelle* (bouton, intention explicite de
+    l'utilisateur) n'est jamais ignorée.
+    """
+    if trigger == manual_trigger or last_attempt is None:
+        return False
+    return (now - last_attempt).total_seconds() < min_interval
+
+
+def options_for(entry) -> dict[str, Any]:
+    """Return the effective options of an entry (options override data)."""
+    merged = {**(entry.data or {}), **(entry.options or {})}
+    merged.setdefault(CONF_SYNC_ENABLED, DEFAULT_SYNC_ENABLED)
+    merged.setdefault(CONF_SYNC_TIME, DEFAULT_SYNC_TIME)
+    merged.setdefault(CONF_SYNC_ON_START, DEFAULT_SYNC_ON_START)
+    merged.setdefault(CONF_TEMP_MODE, DEFAULT_TEMP_MODE)
+    merged.setdefault(CONF_CLOCK_MODE, DEFAULT_CLOCK_MODE)
+    merged.setdefault(CONF_TIMEOUT, DEFAULT_TIMEOUT)
+    return merged

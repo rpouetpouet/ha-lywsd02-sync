@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter une LYWSD02 / LYWSD02MMC",
+        "description": "Saisissez l'adresse MAC Bluetooth de votre thermo-hygromètre Xiaomi LYWSD02 ou LYWSD02MMC. Cela crée une page d'appareil avec un bouton « Synchroniser maintenant », une planification quotidienne intégrée et des entités de diagnostic. Le service lywsd02.set_time continue de fonctionner de son côté.",
+        "data": {
+          "mac": "Adresse MAC",
+          "name": "Nom"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "LYWSD02 / LYWSD02MMC découverte",
+        "description": "Voulez-vous configurer {name} ?"
+      }
+    },
+    "error": {
+      "invalid_mac": "Cette adresse MAC ne semble pas valide."
+    },
+    "abort": {
+      "already_configured": "Cet appareil est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de LYWSD02 Sync",
+        "description": "La planification intégrée remplace une automatisation écrite à la main : si elle est active, l'horloge est synchronisée par l'intégration elle-même. Les réglages ci-dessous s'appliquent à la prochaine synchronisation.",
+        "data": {
+          "sync_enabled": "Synchroniser automatiquement (planification intégrée)",
+          "sync_time": "Heure de synchronisation quotidienne",
+          "sync_on_start": "Synchroniser aussi peu après le démarrage de Home Assistant",
+          "temp_mode": "Unité de température affichée",
+          "clock_mode": "Format de l'horloge",
+          "timeout": "Délai de connexion Bluetooth"
+        }
+      }
+    }
+  },
+  "selector": {
+    "temp_mode": {
+      "options": {
+        "none": "Ne pas modifier",
+        "C": "Celsius (°C)",
+        "F": "Fahrenheit (°F)"
+      }
+    },
+    "clock_mode": {
+      "options": {
+        "none": "Ne pas modifier",
+        "12": "12 heures (LYWSD02MMC uniquement)",
+        "24": "24 heures (LYWSD02MMC uniquement)"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "sync_now": {
+        "name": "Synchroniser maintenant"
+      }
+    },
+    "sensor": {
+      "last_sync": {
+        "name": "Dernière synchronisation"
+      }
+    },
+    "binary_sensor": {
+      "sync_problem": {
+        "name": "Problème de synchronisation"
+      }
+    }
+  }
+}

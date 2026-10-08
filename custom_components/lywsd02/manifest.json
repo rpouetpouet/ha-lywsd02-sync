@@ -10,17 +10,18 @@
         }
     ],
     "codeowners": [
-        "ashald"
+        "rpouetpouet"
     ],
     "config_flow": true,
     "dependencies": [
         "bluetooth"
     ],
-    "documentation": "https://github.com/ashald/home-assistant-lywsd02",
+    "documentation": "https://github.com/rpouetpouet/ha-lywsd02-sync",
     "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/rpouetpouet/ha-lywsd02-sync/issues",
     "requirements": [
         "bluetooth_adapters",
         "bleak-retry-connector>=3.0.0"
     ],
-    "version": "0.3.1"
+    "version": "0.4.0"
 }
