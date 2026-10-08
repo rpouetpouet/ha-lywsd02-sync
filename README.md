@@ -133,6 +133,7 @@ lywsd02:
 ```bash
 python3 tests/test_dst.py          # timezone / DST proofs
 python3 tests/test_sync_logic.py   # option merging, schedule parsing, guard
+python3 tests/test_imports.py      # static check: no missing constant import
 ```
 
 No Home Assistant installation required: the helpers module imports nothing
