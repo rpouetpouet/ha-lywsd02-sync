@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from .const import (
@@ -161,3 +161,51 @@ def device_name_from_title(title: str | None, fallback: str = "") -> str:
     if not title:
         return fallback
     return _TITLE_MODEL_RE.sub("", title.strip()).strip() or fallback
+
+
+# --- Reprise d'etat au redemarrage -----------------------------------------
+#
+# Les compteurs de diagnostic vivent en memoire : au redemarrage de Home
+# Assistant le capteur retombait a « inconnu » alors que l'horloge venait
+# d'etre reglee, et l'information « la derniere synchro a echoue » etait perdue.
+# La fonction ci-dessous reinjecte le dernier etat connu, en refusant tout ce
+# qui pourrait fausser le diagnostic.
+
+ETATS_ABSENTS = (None, "", "unknown", "unavailable")
+
+
+def apply_restored_state(runtime, state_value: object, attributes: dict | None = None) -> bool:
+    """Reinjecte le dernier etat connu d'une synchro reussie. Retourne True si applique.
+
+    Regles volontaires :
+
+    * une synchro deja effectuee depuis le demarrage **gagne** (on ne reecrit
+      jamais une information fraiche avec une information ancienne) ;
+    * ``last_attempt`` n'est **jamais** restaure : le garde-fou anti-boucle doit
+      repartir vierge, sinon la synchro de demarrage serait ignoree apres chaque
+      redemarrage (elle tomberait dans la fenetre des 5 minutes) ;
+    * une date sans fuseau est refusee (Home Assistant ecrit toujours un
+      horodatage ISO avec decalage) ;
+    * ``unknown`` / ``unavailable`` / vide ne restaurent rien.
+    """
+    if getattr(runtime, "last_sync", None) is not None:
+        return False
+    if state_value in ETATS_ABSENTS:
+        return False
+    try:
+        restored = datetime.fromisoformat(str(state_value))
+    except ValueError:
+        return False
+    if restored.tzinfo is None:
+        return False
+
+    runtime.last_sync = restored
+    attrs = attributes or {}
+    if attrs.get("result") is not None:
+        runtime.result = attrs["result"]
+    if attrs.get("last_trigger") is not None:
+        runtime.last_trigger = attrs["last_trigger"]
+    if isinstance(attrs.get("duration_ms"), int):
+        runtime.duration_ms = attrs["duration_ms"]
+    runtime.last_error = attrs.get("last_error") or None
+    return True

@@ -8,7 +8,10 @@ keeps showing the wrong time.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
@@ -16,7 +19,9 @@ from homeassistant.const import CONF_MAC, EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -27,7 +32,7 @@ from .const import (
     DOMAIN,
     SIGNAL_UPDATE,
 )
-from .helpers import next_sync_time, options_for
+from .helpers import apply_restored_state, next_sync_time, options_for
 
 
 async def async_setup_entry(
@@ -39,7 +44,7 @@ async def async_setup_entry(
     async_add_entities([LywsdLastSyncSensor(entry)])
 
 
-class LywsdLastSyncSensor(SensorEntity):
+class LywsdLastSyncSensor(SensorEntity, RestoreEntity):
     """Timestamp of the last successful synchronisation.
 
     The state stays empty until a sync succeeds, so an empty state on a device
@@ -65,7 +70,13 @@ class LywsdLastSyncSensor(SensorEntity):
         )
 
     async def async_added_to_hass(self) -> None:
-        """Refresh the entity whenever a sync completes."""
+        """Refresh on every sync, and reinject the last known state.
+
+        The counters live in memory, so without this the sensor reads "unknown"
+        after every restart even though the clock was just set - and a stored
+        failure would be forgotten.
+        """
+        await super().async_added_to_hass()
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -73,6 +84,18 @@ class LywsdLastSyncSensor(SensorEntity):
                 self._handle_update,
             )
         )
+        await self._async_restore_last_state()
+
+    async def _async_restore_last_state(self) -> None:
+        """Reinject the last successful sync, once, before the first write."""
+        last_state = await self.async_get_last_state()
+        if last_state is None:
+            return
+        if apply_restored_state(
+            self._runtime, last_state.state, dict(last_state.attributes)
+        ):
+            _LOGGER.debug("LYWSD02: dernier etat de synchro restaure")
+            async_dispatcher_send(self.hass, f"{SIGNAL_UPDATE}_{self._entry.entry_id}")
 
     @callback
     def _handle_update(self) -> None:

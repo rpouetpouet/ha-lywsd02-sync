@@ -56,7 +56,7 @@ The config entry is optional: the legacy service below works without it.
 | Entity | What it is |
 |---|---|
 | `button.<clock>_sync_now` | Syncs the clock immediately |
-| `sensor.<clock>_last_sync` | Timestamp of the last **successful** sync (diagnostic) |
+| `sensor.<clock>_last_sync` | Timestamp of the last **successful** sync (diagnostic). **Restored across restarts** (`RestoreEntity`), so it no longer reads `unknown` after a Home Assistant restart |
 | `binary_sensor.<clock>_sync_problem` | `on` when the last attempt failed |
 
 `sensor.<clock>_last_sync` also carries `result`, `last_error`, `last_trigger`
@@ -150,6 +150,7 @@ python3 tests/test_dst.py          # timezone / DST proofs
 python3 tests/test_sync_logic.py   # option merging, schedule parsing, guard
 python3 tests/test_imports.py      # static check: no missing constant import
 python3 tests/test_discovery.py    # model detection from a real advertisement
+python3 tests/test_restore.py      # state recovery after a restart
 ```
 
 `tests/test_discovery.py` replays the **actual advertisement bytes** captured
